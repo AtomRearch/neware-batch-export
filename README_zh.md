@@ -206,7 +206,3 @@ MIT
 
 ---
 
-## 致谢
-
-由西安交通大学 [AtomRearch Lab](https://github.com/AtomRearch) 开发。  
-为 [新威开发者计划](https://github.com/NEWARE-Tech/neware-official/discussions/2) 贡献项目。
