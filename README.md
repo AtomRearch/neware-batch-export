@@ -205,8 +205,3 @@ Run experiment → [aurora-neware: monitor & control]
 MIT
 
 ---
-
-## Acknowledgements
-
-Developed at [AtomRearch Lab](https://github.com/AtomRearch), Xi'an Jiaotong University.  
-Contributed to the [NEWARE Developer Program](https://github.com/NEWARE-Tech/neware-official/discussions/2).
