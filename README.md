@@ -1,5 +1,11 @@
 # neware-batch-export
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/AtomRearch/neware-batch-export)
+[![Release](https://img.shields.io/github/v/release/AtomRearch/neware-batch-export)](https://github.com/AtomRearch/neware-batch-export/releases)
+[![NEWARE Developer Program](https://img.shields.io/badge/NEWARE-Developer%20Program-orange)](https://github.com/NEWARE-Tech/neware-official/discussions/2)
+
 **Batch-export Neware `.ndax` files to complete, full-detail `.xlsx` — with GUI, cycle-mode selection, parallel processing, and email notifications.**
 
 > 📖 [中文说明 README_zh.md](README_zh.md)
