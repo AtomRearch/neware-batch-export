@@ -14,7 +14,7 @@ authors:
     orcid: ""
 repository-code: "https://github.com/AtomRearch/neware-batch-export"
 license: MIT
-version: 1.0.0
+version: 1.1.0
 keywords:
   - neware
   - battery
