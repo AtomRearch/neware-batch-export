@@ -2,4 +2,3 @@ __pycache__/
 *.pyc
 neware_export_history.json
 export_summary_*.csv
-*.bak

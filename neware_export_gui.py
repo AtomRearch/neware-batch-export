@@ -11,7 +11,7 @@ del _tk
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
-import re, os, subprocess, threading, json, shutil, time, csv, zipfile
+import re, os, subprocess, threading, json, time, csv, zipfile
 import smtplib, ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -73,7 +73,9 @@ STRINGS = {
         "exporting":    "Exporting…",
         "clear_log":    "Clear",
         "log_title":    "LOG",
-        "iconf_label":  "iconf: {name} ({val})",
+        "cycle_mode_current":   "Current BTS setting: {name}  (CycleMode = {val})",
+        "cycle_mode_hint":      "Read-only — this tool never modifies BTS configuration. To use a different mode, set it in the BTS software (BTSDA) before exporting.",
+        "cycle_mode_unavailable": "Could not read the current cycle mode from BTS (check ICONF_PATH).",
         "sel_count":    "{n} selected",
         "add_selected": "Add selected",
         "cancel":       "Cancel",
@@ -82,11 +84,9 @@ STRINGS = {
         "missing_title":"Missing files",
         "missing_msg":  "{n} file(s) not found. Continue with the rest?",
         "btsda_title":  "BTSDA Running",
-        "btsda_msg":    "BTSDA.exe is open — iconf may be overwritten mid-export. Continue?",
+        "btsda_msg":    "BTSDA.exe is running, which may interfere with the export. Continue?",
         "no_outdir":    "Enter a custom output directory.",
         "log_start":    "▸  {n} files   mode: {mode}   workers: {w}",
-        "log_iconf":    "   iconf CycleMode → {val}  (backup: {bak})",
-        "log_iconf_err":"   ERROR — iconf write failed: {e}",
         "log_ok":       "   ✓  {name}   {kb} KB  {cyc} cycles  ({s}s)",
         "log_ok_nokb":  "   ✓  {name}   {kb} KB  ({s}s)",
         "log_skip":     "   –  {name}  skipped",
@@ -120,7 +120,9 @@ STRINGS = {
         "exporting":    "导出中…",
         "clear_log":    "清空",
         "log_title":    "日志",
-        "iconf_label":  "iconf: {name} ({val})",
+        "cycle_mode_current":   "当前 BTS 设置：{name}（CycleMode = {val}）",
+        "cycle_mode_hint":      "只读 — 本工具不会修改 BTS 配置。如需使用其他统计方式，请先在 BTS 软件（BTSDA）中设置好再导出。",
+        "cycle_mode_unavailable": "无法读取 BTS 当前的循环统计方式（请检查 ICONF_PATH 配置）。",
         "sel_count":    "已选 {n} 个",
         "add_selected": "添加选中",
         "cancel":       "取消",
@@ -129,11 +131,9 @@ STRINGS = {
         "missing_title":"部分文件缺失",
         "missing_msg":  "{n} 个文件不存在，继续导出其余文件？",
         "btsda_title":  "BTSDA 正在运行",
-        "btsda_msg":    "检测到 BTSDA.exe 运行中，iconf 可能被覆盖。是否继续？",
+        "btsda_msg":    "检测到 BTSDA.exe 正在运行，可能影响导出。是否继续？",
         "no_outdir":    "请输入自定义输出目录。",
         "log_start":    "▸  {n} 个文件   方式：{mode}   并行：{w}",
-        "log_iconf":    "   iconf CycleMode → {val}  (备份：{bak})",
-        "log_iconf_err":"   错误 — iconf 写入失败：{e}",
         "log_ok":       "   ✓  {name}   {kb} KB  {cyc} 个循环  ({s}s)",
         "log_ok_nokb":  "   ✓  {name}   {kb} KB  ({s}s)",
         "log_skip":     "   –  {name}  已跳过",
@@ -147,8 +147,6 @@ STRINGS = {
         "progress":     "{done}/{total}   {t}s",
     },
 }
-
-CYCLE_MODE_VALUES = [0, 1, 2, 3]
 
 def T(key, **kw):
     s = STRINGS[LANG].get(key, key)
@@ -166,25 +164,18 @@ SENDER_EMAIL    = "your_sender@email.com"
 SENDER_PASSWORD = "your_smtp_auth_code"  # App password / SMTP auth code, NOT login password
 RECEIVER_EMAIL  = "your_receiver@email.com"
 
-# ── iconf ────────────────────────────────────────────────────────────
+# ── iconf (read-only) ───────────────────────────────────────────────
+# This tool only ever READS BTSDAConfig.iconf, to display the cycle mode
+# currently configured in BTS. It never writes to it.
 def _read_iconf():
     with open(ICONF_PATH, "rb") as f: raw = f.read()
     bom = raw[:2] if raw[:2] == b"\xff\xfe" else b""
     return bom, raw[len(bom):].decode("utf-16-le")
 
-def _write_iconf(bom, text):
-    with open(ICONF_PATH, "wb") as f:
-        f.write(bom); f.write(text.encode("utf-16-le"))
-
 def get_iconf_mode():
     _, t = _read_iconf()
     m = re.search(r"CycleMode\s*=\s*(\d+)", t)
     return int(m.group(1)) if m else 0
-
-def set_iconf_mode(val):
-    bom, t = _read_iconf()
-    _write_iconf(bom, re.sub(r"(CycleMode\s*=\s*)\d+",
-                             lambda m: m.group(1)+str(val), t, count=1))
 
 # ── Helpers ──────────────────────────────────────────────────────────
 def parse_paths(text):
@@ -401,29 +392,22 @@ class App(ctk.CTk):
             text_color=C_ACCENT, command=self._toggle_lang)
         self.lang_btn.grid(row=0, column=1, padx=(0,10), sticky="e")
 
-        self._reg("lbl_iconf", ctk.CTkLabel(
-            hdr, text="", font=serif(10), text_color=C_MUTED))
-        self._reg("lbl_iconf").grid(row=0, column=2, padx=(0,22), sticky="e")
-        self._refresh_iconf_label()
-
         # Divider
         ctk.CTkFrame(self, height=1, fg_color=C_BORDER,
                      corner_radius=0).grid(row=1, column=0, sticky="ew")
 
-        # Cycle mode
+        # Cycle mode (read-only — reflects BTS's own setting, never written)
         c1 = self._card(2, "cycle_mode")
-        self.seg_mode = ctk.CTkSegmentedButton(
-            c1, values=T("seg_labels"),
-            font=serif(12),
-            fg_color=C_BORDER,
-            selected_color=C_ACCENT,
-            selected_hover_color="#3A6BAF",
-            unselected_color=C_CARD,
-            unselected_hover_color=C_ACCENT2,
-            text_color=C_TEXT,
-            width=520)
-        self.seg_mode.pack(padx=16, pady=12, anchor="w")
-        self.seg_mode.set(T("seg_labels")[get_iconf_mode()])
+        self._reg("lbl_cycle_current", ctk.CTkLabel(
+            c1, text="", font=serif(13, "bold"),
+            text_color=C_TEXT, anchor="w"))
+        self._reg("lbl_cycle_current").pack(padx=16, pady=(12,2), anchor="w")
+        self._reg("lbl_cycle_hint", ctk.CTkLabel(
+            c1, text=T("cycle_mode_hint"), font=serif(10),
+            text_color=C_MUTED, anchor="w", justify="left",
+            wraplength=760))
+        self._reg("lbl_cycle_hint").pack(padx=16, pady=(0,12), anchor="w")
+        self._refresh_cycle_mode_display()
 
         # Input paths
         c2 = self._card(4, "input_paths")
@@ -597,22 +581,7 @@ class App(ctk.CTk):
                 w.configure(text=T("export_btn"))
         self.chk_skip.configure(text=T("skip_existing"))
         self.chk_email.configure(text=T("email_report"))
-        # Update seg mode
-        cur_idx = CYCLE_MODE_VALUES.index(
-            STRINGS["en"]["seg_labels"].index(self.seg_mode.get())
-            if self._lang == "zh"
-            else STRINGS["zh"]["seg_labels"].index(self.seg_mode.get())
-        ) if False else None
-        # Simpler: find current value index by position
-        old_labels = STRINGS["zh" if self._lang == "en" else "en"]["seg_labels"]
-        new_labels = T("seg_labels")
-        try:
-            idx = old_labels.index(self.seg_mode.get())
-        except ValueError:
-            idx = 0
-        self.seg_mode.configure(values=new_labels)
-        self.seg_mode.set(new_labels[idx])
-        self._refresh_iconf_label()
+        self._refresh_cycle_mode_display()
         self._on_paths_change()
 
     # ── UI helpers ───────────────────────────────────────────────────
@@ -638,12 +607,16 @@ class App(ctk.CTk):
             text=T(key, n=n),
             text_color=C_ACCENT if n else C_MUTED)
 
-    def _refresh_iconf_label(self):
-        cur  = get_iconf_mode()
-        names_en = STRINGS["en"]["seg_labels"]
-        name = names_en[cur] if cur < len(names_en) else str(cur)
-        self._reg("lbl_iconf").configure(
-            text=T("iconf_label", name=name, val=cur))
+    def _refresh_cycle_mode_display(self):
+        names = T("seg_labels")
+        try:
+            cur  = get_iconf_mode()
+            name = names[cur] if 0 <= cur < len(names) else f"#{cur}"
+            text = T("cycle_mode_current", name=name, val=cur)
+        except Exception:
+            text = T("cycle_mode_unavailable")
+        self._reg("lbl_cycle_current").configure(text=text)
+        self._reg("lbl_cycle_hint").configure(text=T("cycle_mode_hint"))
 
     def _open_scan(self):
         FolderScanDialog(self, self._append_scanned)
@@ -687,39 +660,29 @@ class App(ctk.CTk):
         self._reg("btn_export").configure(state="disabled",
                                         text=T("exporting"))
 
-        seg_labels = T("seg_labels")
-        mode_label = self.seg_mode.get()
+        # Cycle mode is read-only info (current BTS setting); never written.
+        names    = T("seg_labels")
+        en_names = STRINGS["en"]["seg_labels"]
         try:
-            mode_val = CYCLE_MODE_VALUES[seg_labels.index(mode_label)]
-        except ValueError:
-            mode_val = 0
-        # Keep English name for iconf logging
-        en_labels = STRINGS["en"]["seg_labels"]
-        en_name   = en_labels[mode_val] if mode_val < len(en_labels) else str(mode_val)
+            cur = get_iconf_mode()
+            mode_label = names[cur]    if 0 <= cur < len(names)    else f"#{cur}"
+            en_name    = en_names[cur] if 0 <= cur < len(en_names) else f"#{cur}"
+        except Exception:
+            mode_label = en_name = "?"
 
         threading.Thread(
             target=self._worker,
-            args=(paths, mode_val, mode_label, en_name, out_dir,
+            args=(paths, mode_label, en_name, out_dir,
                   bool(self.chk_skip.get()), int(self.opt_workers.get()),
                   bool(self.chk_email.get())),
             daemon=True).start()
 
-    def _worker(self, paths, mode_val, mode_label, en_name,
+    def _worker(self, paths, mode_label, en_name,
                 out_dir, skip, n_workers, do_email):
         total = len(paths)
         done  = [0]
 
         self._log(T("log_start", n=total, mode=mode_label, w=n_workers), C_INFO)
-
-        backup = ICONF_PATH + ".bak"
-        try:
-            shutil.copy2(ICONF_PATH, backup)
-            set_iconf_mode(mode_val)
-            self._log(T("log_iconf", val=mode_val,
-                        bak=os.path.basename(backup)), C_MUTED)
-        except Exception as e:
-            self._log(T("log_iconf_err", e=e), C_FAIL)
-            self.after(0, self._finish_ui); return
 
         def _handle(r):
             done[0] += 1
@@ -771,7 +734,6 @@ class App(ctk.CTk):
             except Exception as e:
                 self._log(T("log_email_err", e=e), C_FAIL)
 
-        self.after(0, self._refresh_iconf_label)
         self.after(0, self._finish_ui)
 
     def _finish_ui(self):
@@ -804,9 +766,6 @@ class App(ctk.CTk):
             with open(HISTORY_FILE, "w", encoding="utf-8") as f:
                 json.dump({
                     "paths":    self.txt_paths.get("1.0","end").rstrip(),
-                    "mode_idx": CYCLE_MODE_VALUES[
-                        T("seg_labels").index(self.seg_mode.get())
-                        if self.seg_mode.get() in T("seg_labels") else 0],
                     "out_mode": self.out_mode.get(),
                     "out_dir":  self.ent_outdir.get(),
                     "skip":     bool(self.chk_skip.get()),
@@ -831,11 +790,6 @@ class App(ctk.CTk):
             if h.get("paths"):
                 self.txt_paths.insert("1.0", h["paths"])
                 self._on_paths_change()
-            if "mode_idx" in h:
-                labels = T("seg_labels")
-                idx = h["mode_idx"]
-                if 0 <= idx < len(labels):
-                    self.seg_mode.set(labels[idx])
             if h.get("out_mode"):
                 self.out_mode.set(h["out_mode"]); self._toggle_out()
             if h.get("out_dir"):

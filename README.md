@@ -48,7 +48,7 @@ This project wraps that CLI into a GUI tool with batch processing, parallel exec
 ## Features
 
 - ✅ **Full 8-sheet export** — identical to manual single-file export (step/record layers complete)
-- ✅ **Cycle mode selection** — Step Default / Chg→Dchg / Dchg→Chg / Custom Step (patches `BTSDAConfig.iconf` before export)
+- ✅ **Cycle mode display** — shows the cycle-statistics mode currently configured in BTS (Step Default / Chg→Dchg / Dchg→Chg / Custom Step); read-only — this tool never modifies BTS configuration
 - ✅ **Parallel processing** — configurable worker count (default: 3)
 - ✅ **EN / 中文 UI toggle** — one-click language switch
 - ✅ **Flexible path input** — paste single or multiple `r"..."` Python-style paths; `#`-prefixed lines auto-skipped
@@ -58,8 +58,7 @@ This project wraps that CLI into a GUI tool with batch processing, parallel exec
 - ✅ **Summary CSV** — auto-generated after each batch (filename / cycles / size / elapsed time)
 - ✅ **Email report** — optional post-export notification with summary table + CSV attachment
 - ✅ **History** — last-used paths and settings restored on next launch
-- ✅ **BTSDA conflict check** — warns if BTSDA.exe is running (may overwrite iconf)
-- ✅ **iconf backup** — `BTSDAConfig.iconf` backed up before modification, restored on error
+- ✅ **BTSDA conflict check** — warns if BTSDA.exe is running, which may interfere with the export
 
 ---
 
@@ -96,7 +95,7 @@ python neware_export_gui.py
 or double-click `neware-export.bat`.
 
 **Workflow:**
-1. Select **Cycle Mode** (Step Default recommended for most protocols)
+1. The header shows the **cycle mode currently configured in BTS** (read-only). If you need a different mode, set it in the BTS software first, then return here.
 2. Paste `.ndax` paths — supports raw Python list format with inline comments:
    ```python
    r"E:\data\experiment_01.ndax",
@@ -127,6 +126,8 @@ BTSDA_EXE  = r"E:\software\BTSClient80\BTSDAExReport.exe"
 ICONF_PATH = r"C:\Users\<you>\Documents\NEWARE\BTSClient\BTSDAConfig.iconf"
 ```
 
+`ICONF_PATH` is only ever **read** — to display the cycle mode currently configured in BTS. This tool never writes to BTS configuration files.
+
 ### Email notifications
 
 Email is **disabled by default**. To enable it, check *Email report on finish* in the GUI, then configure the SMTP section in `neware_export_gui.py`:
@@ -154,7 +155,7 @@ Common SMTP providers:
 
 ## Cycle Mode
 
-Controls how BTS counts charge/discharge capacity per cycle. Written to `BTSDAConfig.iconf` before export.
+Controls how BTS counts charge/discharge capacity per cycle. This is configured **in the BTS software itself** (`BTSDAConfig.iconf`) — the GUI displays the current value read-only and never changes it.
 
 | Mode | Value | Description |
 |------|-------|-------------|
@@ -162,6 +163,8 @@ Controls how BTS counts charge/discharge capacity per cycle. Written to `BTSDACo
 | Chg→Dchg | 1 | Charge-first cycle counting |
 | Dchg→Chg | 2 | Discharge-first cycle counting |
 | Custom Step | 3 | User-defined starting step |
+
+To use a different mode, change it in BTS before exporting.
 
 ---
 

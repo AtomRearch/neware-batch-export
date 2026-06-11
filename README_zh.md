@@ -1,6 +1,12 @@
 # neware-batch-export（新威批量导出工具）
 
-**将新威 `.ndax` 文件批量导出为完整 8-sheet `.xlsx`——带 GUI 界面、循环统计方式选择、并行处理和邮件通知。**
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/AtomRearch/neware-batch-export)
+[![Release](https://img.shields.io/github/v/release/AtomRearch/neware-batch-export)](https://github.com/AtomRearch/neware-batch-export/releases)
+[![NEWARE Developer Program](https://img.shields.io/badge/NEWARE-Developer%20Program-orange)](https://github.com/NEWARE-Tech/neware-official/discussions/2)
+
+**将新威 `.ndax` 文件批量导出为完整 8-sheet `.xlsx`——带 GUI 界面、循环统计方式显示、并行处理和邮件通知。**
 
 > 📖 [English README](README.md)
 
@@ -42,7 +48,7 @@ BTSDAExReport.exe export custom "<输入文件.ndax>" "<输出文件.xlsx>"
 ## 功能
 
 - ✅ **完整 8-sheet 导出** — 与手动单文件导出完全一致（step/record 数据完整）
-- ✅ **循环统计方式选择** — 工步默认 / 先充后放 / 先放后充 / 起始工步（导出前自动写入 iconf）
+- ✅ **循环统计方式显示** — 显示当前 BTS 中配置的循环统计方式（工步默认 / 先充后放 / 先放后充 / 起始工步）；只读，本工具不会修改 BTS 配置
 - ✅ **并行处理** — 可配置并行数（默认 3）
 - ✅ **中英文 UI 一键切换**
 - ✅ **灵活路径输入** — 支持单个或多个 `r"..."` Python 格式路径，`#` 注释行自动跳过
@@ -52,8 +58,7 @@ BTSDAExReport.exe export custom "<输入文件.ndax>" "<输出文件.xlsx>"
 - ✅ **汇总 CSV** — 每批次完成后自动生成（文件名/循环数/大小/用时）
 - ✅ **邮件简报** — 可选：完成后发送含汇总表和 CSV 附件的通知邮件
 - ✅ **历史记录** — 上次使用的路径和设置下次启动自动恢复
-- ✅ **BTSDA 冲突检测** — 检测到 BTSDA.exe 运行时弹出警告
-- ✅ **iconf 备份** — 修改前自动备份，出错自动还原
+- ✅ **BTSDA 冲突检测** — 检测到 BTSDA.exe 运行时弹出警告，避免导出过程被干扰
 
 ---
 
@@ -90,7 +95,7 @@ python neware_export_gui.py
 或直接双击 `neware-export.bat`。
 
 **操作流程：**
-1. 选择**循环统计方式**（大多数实验推荐使用工步默认）
+1. 顶部会显示**当前 BTS 中配置的循环统计方式**（只读）。如需使用其他方式，请先在 BTS 软件中设置好，再回到本工具。
 2. 粘贴 `.ndax` 路径，支持 Python list 格式（含注释行）：
    ```python
    r"E:\data\experiment_01.ndax",
@@ -121,6 +126,8 @@ BTSDA_EXE  = r"E:\software\BTSClient80\BTSDAExReport.exe"
 ICONF_PATH = r"C:\Users\<你的用户名>\Documents\NEWARE\BTSClient\BTSDAConfig.iconf"
 ```
 
+`ICONF_PATH` 仅用于**读取**——显示当前 BTS 中配置的循环统计方式。本工具不会修改 BTS 的任何配置文件。
+
 ### 邮件通知
 
 邮件功能**默认关闭**。勾选界面中的「完成后发邮件简报」后，配置 `neware_export_gui.py` 中的 SMTP 信息：
@@ -148,7 +155,7 @@ RECEIVER_EMAIL  = "recipient@email.com"
 
 ## 循环统计方式说明
 
-控制 BTS 如何统计每个循环的充放电容量，导出前写入 `BTSDAConfig.iconf`。
+控制 BTS 如何统计每个循环的充放电容量。该设置**在 BTS 软件本身中配置**（`BTSDAConfig.iconf`）；本工具只读取并显示当前值，不会修改它。
 
 | 方式 | 值 | 说明 |
 |------|---|------|
@@ -156,6 +163,8 @@ RECEIVER_EMAIL  = "recipient@email.com"
 | 先充后放 | 1 | 先充电后放电统计 |
 | 先放后充 | 2 | 先放电后充电统计 |
 | 起始工步 | 3 | 自定义起始工步 |
+
+如需使用其他方式，请在导出前于 BTS 软件中切换。
 
 ---
 
