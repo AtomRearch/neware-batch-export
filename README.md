@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/AtomRearch/neware-batch-export)](https://github.com/AtomRearch/neware-batch-export/releases)
 [![NEWARE Developer Program](https://img.shields.io/badge/NEWARE-Developer%20Program-orange)](https://github.com/NEWARE-Tech/neware-official/discussions/2)
 
-**Batch-export Neware `.ndax` files to complete, full-detail `.xlsx` — with GUI, cycle-mode selection, parallel processing, and email notifications.**
+**Batch-export Neware `.ndax` files to complete, full-detail `.xlsx` — with GUI, cycle-mode display, parallel processing, and email notifications.**
 
 > 📖 [中文说明 README_zh.md](README_zh.md)
 
